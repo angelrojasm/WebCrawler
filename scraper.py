@@ -13,8 +13,10 @@ def getWebsiteLinks(url, keyword, depth):
         inputFile.close()
         soup = BeautifulSoup(html_page, "html.parser")
         # parses all the url and organizes them in an array
+        if(depth == 'Initial Link'):
+            depth = -1
         for link in soup.findAll('a'):
             if 'http' in str(link.get('href')):
                 links.append(str(link.get('href')))
         links = list(dict.fromkeys(links))
-    return (links, depth - 1)
+    return (links, depth + 1)

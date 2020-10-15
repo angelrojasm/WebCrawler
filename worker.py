@@ -1,6 +1,6 @@
 import socket
 import scraper
-import converter
+import json
 
 HOST = '127.0.0.1'
 PORT = 3000
@@ -9,16 +9,14 @@ PORT = 3000
 VisitedLinks = []
 keyword = ''
 maxDepth = 0
-message = ''
-shouldStop = False
 
 
 def socketGetWork():
     mySocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     mySocket.connect((HOST, PORT))
     while True:
-        mySocket.sendall(str.encode(
-            converter.encodeToXML('GetWork', '', '', 0)))
+        mySocket.sendall(str.encode(json.dumps(
+            {"Method": "GetWork", "URL": '', "Keyword": '', "Depth": 0})))
         print('Worker sent info to Server')
         data = mySocket.recv(1024)
         message = data.decode('utf-8')
@@ -29,29 +27,38 @@ def socketGetWork():
         else:
             print('Recieved info queue from server')
             mySocket.close()
-            return message
+            if(message == '0'):
+                return ('0', '0')
+            else:
+                return (message, json.loads(message)["Depth"])
 
 
 def socketPutWork():
-    message = socketGetWork()
+    global maxDepth
+    tempTuple = socketGetWork()
+    message = tempTuple[0]
     if(message == '0'):
         return True
-    link = converter.decodeToValues(message)
-    keyword = link[2]
+    if(len(VisitedLinks) == 0):
+        maxDepth = int(tempTuple[1])
+    link = json.loads(message)
+    keyword = link["Keyword"]
     # Verifies the link has not already been scraped
-    if not(link[1] in VisitedLinks):
+    if not(link["URL"] in VisitedLinks):
         if(len(VisitedLinks) == 0):
-            linkTuple = scraper.getWebsiteLinks(link[1], link[2], link[3] + 1)
+            linkTuple = scraper.getWebsiteLinks(
+                link["URL"], link["Keyword"], 'Initial Link')
+
         else:
             linkTuple = scraper.getWebsiteLinks(
-                link[1], link[2], link[3])
-        VisitedLinks.append(link[1])
+                link["URL"], link["Keyword"], link["Depth"])
+        VisitedLinks.append(link["URL"])
         for branchLink in linkTuple[0]:
             mySocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             mySocket.connect((HOST, PORT))
-            if not(branchLink in VisitedLinks) and (linkTuple[1] >= 0):
-                mySocket.sendall(str.encode(converter.encodeToXML(
-                    'PutWork', branchLink, keyword, linkTuple[1])))
+            if not(branchLink in VisitedLinks) and (linkTuple[1] <= maxDepth):
+                mySocket.sendall(str.encode(json.dumps(
+                    {"Method": "PutWork", "URL": branchLink, "Keyword": keyword, "Depth": linkTuple[1]})))
             mySocket.close()
 
     return False

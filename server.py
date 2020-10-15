@@ -1,5 +1,5 @@
 import socket
-import converter
+import json
 
 HOST = '127.0.0.1'
 
@@ -23,7 +23,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as mySocket:
                 if not data:
                     break
 
-                if(converter.decodeToValues(message)[0] == "GetWork"):
+                if(json.loads(message)["Method"] == "GetWork"):
                     print(
                         'Server recieved Get Request. Sending Queue front item info:')
                     if(len(InfoQueue) == 0):
@@ -34,7 +34,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as mySocket:
                         server.sendall(str.encode(InfoQueue[0]))
                         InfoQueue.pop(0)
                 else:
-                    if(converter.decodeToValues(message)[0] == "PutWork"):
+                    if(json.loads(message)["Method"] == "PutWork"):
                         print('Server recieved data from client')
                         InfoQueue.append(message)
                         print('info queue is\n')
